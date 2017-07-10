@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 from wildcat.engine import MultiLabelMAPEngine
-from wildcat.models import resnet50_wildcat
+from wildcat.models import resnet101_wildcat
 from wildcat.voc import Voc2007Classification
 
 parser = argparse.ArgumentParser(description='WILDCAT Training')
@@ -52,7 +52,7 @@ def main_voc2007():
     num_classes = 20
 
     # load model
-    model = resnet50_wildcat(num_classes, pretrained=True)
+    model = resnet101_wildcat(num_classes, pretrained=True)
 
     # define loss function (criterion)
     criterion = nn.MultiLabelSoftMarginLoss()
