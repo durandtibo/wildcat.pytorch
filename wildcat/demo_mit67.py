@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from wildcat.engine import MulticlassEngine
 from wildcat.mit67 import Mit67
-from wildcat.models import resnet50_wildcat
+from wildcat.models import resnet101_wildcat
 
 parser = argparse.ArgumentParser(description='WILDCAT Training')
 parser.add_argument('data', metavar='DIR',
@@ -52,7 +52,7 @@ def main_voc2007():
     num_classes = 67
 
     # load model
-    model = resnet50_wildcat(num_classes, pretrained=True)
+    model = resnet101_wildcat(num_classes, pretrained=True)
 
     # define loss function (criterion)
     criterion = nn.CrossEntropyLoss()
