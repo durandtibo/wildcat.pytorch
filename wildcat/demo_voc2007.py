@@ -34,8 +34,10 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
-parser.add_argument('--k', '-k', default=1, type=float,
+parser.add_argument('--k', default=1, type=float,
                     metavar='N', help='number of regions (default: 1)')
+parser.add_argument('--alpha', default=1, type=float,
+                    metavar='N', help='weight for the min regions (default: 1)')
 parser.add_argument('--maps', default=1, type=int,
                     metavar='N', help='number of maps per class (default: 1)')
 
@@ -52,7 +54,9 @@ def main_voc2007():
     num_classes = 20
 
     # load model
-    model = resnet101_wildcat(num_classes, pretrained=True)
+    model = resnet101_wildcat(num_classes, pretrained=True, kmax=args.k, alpha=args.alpha, num_maps=args.maps)
+    print('classifier', model.classifier)
+    print('spatial pooling', model.spatial_pooling)
 
     # define loss function (criterion)
     criterion = nn.MultiLabelSoftMarginLoss()

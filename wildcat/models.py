@@ -1,4 +1,4 @@
-import torch
+import spatialpooling
 import torch.nn as nn
 import torchvision.models as models
 
@@ -46,14 +46,17 @@ class ResNetWSL(nn.Module):
                 {'params': self.spatial_pooling.parameters()}]
 
 
-
 def resnet50_wildcat(num_classes, pretrained=True, kmax=1, kmin=None, alpha=1, num_maps=1):
     model = models.resnet50(pretrained)
-    pooling = WildcatPool2d(kmax, kmin, alpha)
-    return ResNetWSL(model, num_classes*num_maps, pooling=pooling)
+    pooling = nn.Sequential()
+    pooling.add_module('class_wise', spatialpooling.ClassWisePool(num_maps))
+    pooling.add_module('spatial', spatialpooling.WildcatPool2d(kmax, kmin, alpha))
+    return ResNetWSL(model, num_classes * num_maps, pooling=pooling)
 
 
 def resnet101_wildcat(num_classes, pretrained=True, kmax=1, kmin=None, alpha=1, num_maps=1):
     model = models.resnet101(pretrained)
-    pooling = WildcatPool2d(kmax, kmin, alpha)
-    return ResNetWSL(model, num_classes*num_maps, pooling=pooling)
+    pooling = nn.Sequential()
+    pooling.add_module('class_wise', spatialpooling.ClassWisePool(num_maps))
+    pooling.add_module('spatial', spatialpooling.WildcatPool2d(kmax, kmin, alpha))
+    return ResNetWSL(model, num_classes * num_maps, pooling=pooling)

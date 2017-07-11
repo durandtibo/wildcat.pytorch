@@ -1,8 +1,7 @@
+import os
 import shutil
 import time
-import os
-import numpy as np
-import matplotlib
+
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn.parallel
@@ -10,11 +9,7 @@ import torch.optim
 import torch.utils.data
 import torchnet as tnt
 import torchvision.transforms as transforms
-from PIL import Image
 from tqdm import tqdm
-import copy
-
-import matplotlib.pyplot as plt
 
 from wildcat.util import AveragePrecisionMeter, Warp
 
@@ -385,6 +380,69 @@ class MulticlassEngine(Engine):
                     self.state['iteration'], len(data_loader), batch_time_current=self.state['batch_time_current'],
                     batch_time=batch_time, data_time_current=self.state['data_time_batch'],
                     data_time=data_time, loss_current=self.state['loss_batch'], loss=loss, top1=top1))
+
+
+class MulticlassTop5Engine(Engine):
+    def __init__(self, state):
+        Engine.__init__(self, state)
+        self.state['classacc'] = tnt.meter.ClassErrorMeter(topk=[1, 5], accuracy=True)
+
+    def on_start_epoch(self, training, model, criterion, data_loader, optimizer=None, display=True):
+        Engine.on_start_epoch(self, training, model, criterion, data_loader, optimizer)
+        self.state['classacc'].reset()
+
+    def on_end_epoch(self, training, model, criterion, data_loader, optimizer=None, display=True):
+        top1 = self.state['classacc'].value()[0]
+        top5 = self.state['classacc'].value()[1]
+        loss = self.state['meter_loss'].value()[0]
+        if display:
+            if training:
+                print('Epoch: [{0}]\t'
+                      'Loss {loss:.4f}\t'
+                      'Prec@1 {top1:.3f}\t'
+                      'Prec@5 {top5:.3f}'.format(self.state['epoch'], loss=loss, top1=top1, top5=top5))
+            else:
+                print('Test: \t'
+                      'Loss {loss:.4f}\t'
+                      'Prec@1 {top1:.3f}\t'
+                      'Prec@5 {top5:.3f}'.format(loss=loss, top1=top1, top5=top5))
+
+        return top1
+
+    def on_end_batch(self, training, model, criterion, data_loader, optimizer=None, display=True):
+
+        Engine.on_end_batch(self, training, model, criterion, data_loader, optimizer, display=False)
+
+        # measure accuracy
+        self.state['classacc'].add(self.state['output'].data, self.state['target'])
+
+        if display and self.state['print_freq'] != 0 and self.state['iteration'] % self.state['print_freq'] == 0:
+            top1 = self.state['classacc'].value()[0]
+            top5 = self.state['classacc'].value()[1]
+            loss = self.state['meter_loss'].value()[0]
+            batch_time = self.state['batch_time'].value()[0]
+            data_time = self.state['data_time'].value()[0]
+            if training:
+                print('Epoch: [{0}][{1}/{2}]\t'
+                      'Time {batch_time_current:.3f} ({batch_time:.3f})\t'
+                      'Data {data_time_current:.3f} ({data_time:.3f})\t'
+                      'Loss {loss_current:.4f} ({loss:.4f})\t'
+                      'Prec@1 {top1:.3f}\t'
+                      'Prec@5 {top5:.3f}'.format(
+                    self.state['epoch'], self.state['iteration'], len(data_loader),
+                    batch_time_current=self.state['batch_time_current'], batch_time=batch_time,
+                    data_time_current=self.state['data_time_batch'], data_time=data_time,
+                    loss_current=self.state['loss_batch'], loss=loss, top1=top1, top5=top5))
+            else:
+                print('Test: [{0}/{1}]\t'
+                      'Time {batch_time_current:.3f} ({batch_time:.3f})\t'
+                      'Data {data_time_current:.3f} ({data_time:.3f})\t'
+                      'Loss {loss_current:.4f} ({loss:.4f})\t'
+                      'Prec@1 {top1:.3f}\t'
+                      'Prec@5 {top5:.3f}'.format(
+                    self.state['iteration'], len(data_loader), batch_time_current=self.state['batch_time_current'],
+                    batch_time=batch_time, data_time_current=self.state['data_time_batch'],
+                    data_time=data_time, loss_current=self.state['loss_batch'], loss=loss, top1=top1, top5=top5))
 
 
 class MultiLabelMAPEngine(Engine):
