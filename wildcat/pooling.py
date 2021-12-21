@@ -38,7 +38,7 @@ class WildcatPool2dFunction(Function):
         ctx.indices_max = indices.narrow(2, 0, kmax)
         output = sorted.narrow(2, 0, kmax).sum(2).div_(kmax)
 
-        if kmin > 0 and ctx.alpha is not 0:
+        if kmin > 0 and ctx.alpha != 0:
             ctx.indices_min = indices.narrow(2, n - kmin, kmin)
             output.add_(sorted.narrow(2, n - kmin, kmin).sum(2).mul_(ctx.alpha / kmin)).div_(2)
 
@@ -66,7 +66,7 @@ class WildcatPool2dFunction(Function):
                                                                                               grad_output_max).div_(
             kmax)
 
-        if kmin > 0 and ctx.alpha is not 0:
+        if kmin > 0 and ctx.alpha != 0:
             grad_output_min = grad_output.view(batch_size, num_channels, 1).expand(batch_size, num_channels, kmin)
             grad_input_min = grad_output.new().resize_(batch_size, num_channels, n).fill_(0).scatter_(2,
                                                                                                       ctx.indices_min,
