@@ -207,9 +207,10 @@ def resnet18_wildcat_upsample(num_classes, pretrained=True, kmax=1, kmin=None, a
 
 class BoundingBoxWildCatModel(nn.Module):
     
-    def __init__(self, wildcat_model):
+    def __init__(self, wildcat_model, scale_factor = 0.5):
         super(BoundingBoxWildCatModel, self).__init__()
         self.wildcat_model = wildcat_model
+        self.scale_factor = scale_factor
         
     def forward(self, x):
         
@@ -220,9 +221,12 @@ class BoundingBoxWildCatModel(nn.Module):
         # If there is a mask channel, apply it
         if x.shape[1] == 4:
             # Downsample the mask to the same size and x_cpool
-            mask_interp = torch.nn.functional.interpolate(
-                x[:,3:,:,:], scale_factor=0.5, mode='nearest',
-                recompute_scale_factor=False)
+            if self.scale_factor != 1:
+                mask_interp = torch.nn.functional.interpolate(
+                    x[:,3:,:,:], scale_factor=0.5, mode='nearest',
+                    recompute_scale_factor=False)
+            else:
+                mask_interp = x[:,3:,:,:]
 
             # Now clip by mask. We can simply replace the pixels outside of the mask
             # by negative infinity - as long as kmin=0, they will not factor into the
