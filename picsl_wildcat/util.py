@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import datasets, models, transforms
+from torch.utils.data import DataLoader
 import torch.nn.functional as F
 import numpy as np
 import os
@@ -18,7 +19,8 @@ class ImageFolderWithBBox(datasets.ImageFolder):
     """
 
     # Pass the manifest dataframe as initializer
-    def __init__(self, data_path, manifest = None, transform = None, min_box_size = 112):
+    def __init__(self, data_path, use_bbox, manifest = None, transform = None, 
+                 min_box_size = 112, target_scale = None):
         
         # Wrapped worker
         self._worker = datasets.ImageFolder(data_path)
@@ -34,12 +36,19 @@ class ImageFolderWithBBox(datasets.ImageFolder):
         
         # Store the manifest and the custom transform
         self.manifest = manifest
+        self.use_bbox = use_bbox
         self.transform = transform
         self.classes = self._worker.classes
         self.class_to_idx = self._worker.class_to_idx
         self.targets = self._worker.targets
         self.samples = self._worker.samples
         self.min_box_size = min_box_size
+        self.target_scale = target_scale
+
+        # Manifest is required if using scaling or bbox
+        if use_bbox or target_scale is not None:
+            if manifest is None:
+                raise('Missing manifest when requesting bbox/scale mode')
 
     # override the __getitem__ method. this is the method dataloader calls
     def __getitem__(self, index):
@@ -50,11 +59,19 @@ class ImageFolderWithBBox(datasets.ImageFolder):
         # the image file path and patch id
         path = self._worker.imgs[index][0]
         patch_id = os.path.splitext(os.path.basename(path))[0]
-        
-        # Look up the patch
-        if self.manifest is not None:
+
+        # Apply scaling to the patch
+        scale_factor = 1.0
+        if self.target_scale is not None:
+            match = self.manifest.loc[self.manifest['id']==int(patch_id), ('mpp_x','mpp_y')]
+            mpp_x = float(match.iloc[0,0])
+            scale_factor = mpp_x / self.target_scale
+            target_size = [ int(x * scale_factor) for x in img.size ]
+            img = transforms.functional.resize(img, target_size, antialias=True)
+
+        if self.use_bbox:
             match = self.manifest.loc[self.manifest['id']==int(patch_id), ('w','h')]
-            b = np.array([match.iloc[0,0], match.iloc[0,1]])
+            b = np.array([int(scale_factor * match.iloc[0,0]), int(scale_factor * match.iloc[0,1])])
 
             # Set the minimum box size to 56x56
             b = max(b[0],self.min_box_size), max(b[1],self.min_box_size)
@@ -74,7 +91,7 @@ class ImageFolderWithBBox(datasets.ImageFolder):
             img = self.transform(img)
         
         # make a new tuple that includes original and the path
-        return img, label
+        return img, label, patch_id
     
     # Get the number of samples
     def __len__(self):
